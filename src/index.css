@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+:root {
+  font-family:
+    "Noto Sans Thai", "Leelawadee UI", Tahoma, ui-sans-serif, system-ui,
+    sans-serif;
+  color: #183b37;
+  background: #f4f8f7;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible + span {
+  outline: 3px solid #73c8b4;
+  outline-offset: 3px;
+}
