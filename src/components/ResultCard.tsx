@@ -15,10 +15,19 @@ const categoryLabels: Record<DressingCategory, string> = {
 
 interface ResultCardProps {
   evaluation: WoundEvaluation;
+  inventoryConfigured: boolean;
   onReset: () => void;
 }
 
-export default function ResultCard({ evaluation, onReset }: ResultCardProps) {
+export default function ResultCard({
+  evaluation,
+  inventoryConfigured,
+  onReset,
+}: ResultCardProps) {
+  const hasMatchingDressingInStock = evaluation.recommended_products.some(
+    (product) => product.category === evaluation.recommended_category,
+  );
+
   return (
     <section className="space-y-5">
       <div className="rounded-[2rem] border border-[#dcebe5] bg-white p-6 shadow-[0_22px_70px_-48px_rgba(24,59,55,0.35)] sm:p-8">
@@ -52,13 +61,22 @@ export default function ResultCard({ evaluation, onReset }: ResultCardProps) {
             ผลิตภัณฑ์ที่เกี่ยวข้อง
           </h3>
           <p className="mt-1 text-sm text-slate-500">
-            ตัวอย่างผลิตภัณฑ์ตามกลุ่มวัสดุปิดแผล พร้อมผลิตภัณฑ์ทำความสะอาดแผล
+            {inventoryConfigured
+              ? "ตัวเลือกที่ตรงกับกลุ่มวัสดุปิดแผลและรายการสต็อกที่บันทึกไว้"
+              : "ตัวอย่างผลิตภัณฑ์ตามกลุ่มวัสดุปิดแผล พร้อมผลิตภัณฑ์ทำความสะอาดแผล"}
           </p>
         </div>
 
-        <ul className="space-y-3">
-          {evaluation.recommended_products.map((product) => {
-            return (
+        {inventoryConfigured && !hasMatchingDressingInStock && (
+          <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            ไม่มีผลิตภัณฑ์กลุ่ม{categoryLabels[evaluation.recommended_category]}ในสต็อกที่บันทึกไว้
+            รายการด้านล่าง (ถ้ามี) เป็นผลิตภัณฑ์ทำความสะอาดแผลเท่านั้น
+          </p>
+        )}
+
+        {evaluation.recommended_products.length > 0 ? (
+          <ul className="space-y-3">
+            {evaluation.recommended_products.map((product) => (
               <li
                 className="rounded-2xl border border-[#e8efed] p-4"
                 key={`${product.category}-${product.brand}`}
@@ -76,10 +94,54 @@ export default function ResultCard({ evaluation, onReset }: ResultCardProps) {
                   {product.description}
                 </p>
               </li>
-            );
-          })}
-        </ul>
+            ))}
+          </ul>
+        ) : (
+          <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            ไม่พบผลิตภัณฑ์ในสต็อกที่ตรงกับกลุ่มวัสดุปิดแผลที่พิจารณา
+            โปรดตรวจสอบรายการสต็อกหรือปรึกษาบุคลากรทางการแพทย์เพื่อพิจารณาทางเลือกอื่น
+          </p>
+        )}
       </div>
+
+      {inventoryConfigured && (
+        <div className="rounded-[2rem] border border-[#e2ece9] bg-white p-6 shadow-[0_22px_70px_-48px_rgba(24,59,55,0.25)] sm:p-8">
+          <h3 className="text-lg font-bold text-[#183b37]">
+            ตัวเลือกอื่นที่มีในร้าน
+          </h3>
+          <p className="mt-1 text-sm leading-6 text-slate-500">
+            รายการเหล่านี้อยู่ในสต็อกที่บันทึกไว้ แต่ไม่ใช่กลุ่มหลักที่ระบบพิจารณา
+            โปรดตรวจสอบความเหมาะสมก่อนเลือกใช้
+          </p>
+          {evaluation.alternative_products.length > 0 ? (
+            <ul className="mt-4 space-y-3">
+              {evaluation.alternative_products.map((product) => (
+                <li
+                  className="rounded-2xl border border-[#e8efed] p-4"
+                  key={`${product.category}-${product.brand}`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <h4 className="font-bold text-[#254943]">{product.brand}</h4>
+                    <span className="rounded-full bg-[#f0f6f4] px-2.5 py-1 text-xs font-medium text-[#527a72]">
+                      {categoryLabels[product.category]}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">
+                    ผู้ผลิต: {product.manufacturer}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {product.description}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 rounded-xl bg-[#f6faf8] p-4 text-sm text-slate-600">
+              ไม่มีผลิตภัณฑ์กลุ่มอื่นที่เลือกไว้ในสต็อก
+            </p>
+          )}
+        </div>
+      )}
 
       <aside className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
         <p className="font-bold">ข้อควรทราบ</p>

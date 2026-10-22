@@ -6,9 +6,13 @@ export interface WoundEvaluation {
   clinical_reason: string;
   recommended_category: DressingCategory;
   recommended_products: DressingProduct[];
+  alternative_products: DressingProduct[];
 }
 
-export function evaluateWound(answers: WoundAnswers): WoundEvaluation {
+export function evaluateWound(
+  answers: WoundAnswers,
+  availableBrands?: ReadonlySet<string>,
+): WoundEvaluation {
   let recommendedCategory: DressingCategory;
   let clinicalReason: string;
 
@@ -52,13 +56,26 @@ export function evaluateWound(answers: WoundAnswers): WoundEvaluation {
     (product) =>
       product.category === recommendedCategory ||
       product.category === "Wound Cleansing",
+  ).filter(
+    (product) =>
+      availableBrands === undefined || availableBrands.has(product.brand),
   );
+  const alternativeProducts =
+    availableBrands === undefined
+      ? []
+      : plasters.filter(
+          (product) =>
+            product.category !== recommendedCategory &&
+            product.category !== "Wound Cleansing" &&
+            availableBrands.has(product.brand),
+        );
 
   return {
     woundTypeEval: `${getCauseLabel(answers.cause)} · ${getTissueLabel(answers.tissue)} · สารคัดหลั่ง${getExudateLabel(answers.exudate)} · ${answers.infection === "yes" ? "มี" : "ไม่มี"}สัญญาณติดเชื้อ`,
     clinical_reason: clinicalReason,
     recommended_category: recommendedCategory,
     recommended_products: recommendedProducts,
+    alternative_products: alternativeProducts,
   };
 }
 
