@@ -5,16 +5,21 @@ import {
   type WoundAnswers,
   type WoundAnswerValue,
 } from "../data/questions";
+import type { Sensitivity } from "../data/plasters";
 
 interface QuestionnaireProps {
   answers: Partial<WoundAnswers>;
+  sensitivities: Sensitivity[];
   onAnswer: <K extends WoundAnswerKey>(key: K, value: WoundAnswers[K]) => void;
+  onSensitivitiesChange: (sensitivities: Sensitivity[]) => void;
   onSubmit: () => void;
 }
 
 export default function Questionnaire({
   answers,
+  sensitivities,
   onAnswer,
+  onSensitivitiesChange,
   onSubmit,
 }: QuestionnaireProps) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -57,6 +62,40 @@ export default function Questionnaire({
           style={{ width: `${progress}%` }}
         />
       </div>
+
+      <fieldset className="mb-7 rounded-2xl border border-[#e2ece9] bg-[#f8fbfa] p-4">
+        <legend className="px-1 text-sm font-bold text-[#254943]">
+          ความไวหรือการแพ้ที่ควรคำนึงถึง
+        </legend>
+        <p className="mb-3 text-xs leading-5 text-slate-500">
+          เลือกเพื่อแสดงเฉพาะผลิตภัณฑ์ที่มีการยืนยันข้อมูลจากฉลากไว้ในรายการสต็อก
+        </p>
+        {(
+          [
+            ["latex", "ลาเท็กซ์"],
+            ["adhesive", "สารยึดติด"],
+          ] as const
+        ).map(([value, label]) => (
+          <label
+            className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-[#254943]"
+            key={value}
+          >
+            <input
+              checked={sensitivities.includes(value)}
+              className="h-4 w-4 accent-[#286d62]"
+              onChange={(event) =>
+                onSensitivitiesChange(
+                  event.target.checked
+                    ? [...sensitivities, value]
+                    : sensitivities.filter((item) => item !== value),
+                )
+              }
+              type="checkbox"
+            />
+            {label}
+          </label>
+        ))}
+      </fieldset>
 
       <div className="mb-6">
         <h2 className="text-xl font-bold leading-snug text-[#183b37] sm:text-2xl">

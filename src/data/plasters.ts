@@ -16,6 +16,15 @@ export interface DressingProduct {
   description: string;
 }
 
+export type Sensitivity = "latex" | "adhesive";
+
+export interface InventorySelection {
+  brand: string;
+  sizes: string[];
+  latexFreeConfirmed: boolean;
+  adhesiveFreeConfirmed: boolean;
+}
+
 export const plasters: DressingProduct[] = [
   {
     category: "Wound Cleansing",

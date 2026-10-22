@@ -28,3 +28,18 @@ input:focus-visible + span {
   outline: 3px solid #73c8b4;
   outline-offset: 3px;
 }
+
+@media print {
+  :root {
+    background: white;
+  }
+
+  main {
+    padding: 0;
+  }
+
+  section {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+}

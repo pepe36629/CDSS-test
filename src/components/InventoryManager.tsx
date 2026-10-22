@@ -1,23 +1,36 @@
 import { useMemo, useState } from "react";
-import { plasters } from "../data/plasters";
+import {
+  plasters,
+  type InventorySelection,
+} from "../data/plasters";
 
 interface InventoryManagerProps {
   error: string | null;
-  initialBrands: string[];
+  initialStock: InventorySelection[];
   isLoading: boolean;
-  onApply: (brands: string[]) => void;
+  onApply: (stock: InventorySelection[]) => void;
+}
+
+function createSelection(brand: string): InventorySelection {
+  return {
+    brand,
+    sizes: [],
+    latexFreeConfirmed: false,
+    adhesiveFreeConfirmed: false,
+  };
 }
 
 export default function InventoryManager({
   error,
-  initialBrands,
+  initialStock,
   isLoading,
   onApply,
 }: InventoryManagerProps) {
-  const [selectedBrands, setSelectedBrands] = useState(
-    () => new Set(initialBrands),
+  const [stock, setStock] = useState(
+    () => new Map(initialStock.map((item) => [item.brand, item])),
   );
   const [search, setSearch] = useState("");
+  const [sizeDrafts, setSizeDrafts] = useState<Record<string, string>>({});
   const categories = [...new Set(plasters.map((product) => product.category))];
   const normalizedSearch = search.trim().toLowerCase();
   const filteredPlasters = useMemo(
@@ -31,21 +44,52 @@ export default function InventoryManager({
   );
 
   function toggleBrand(brand: string) {
-    setSelectedBrands((current) => {
-      const next = new Set(current);
+    setStock((current) => {
+      const next = new Map(current);
       if (next.has(brand)) {
         next.delete(brand);
       } else {
-        next.add(brand);
+        next.set(brand, createSelection(brand));
+      }
+      return next;
+    });
+  }
+
+  function updateSelection(
+    brand: string,
+    updates: Partial<Omit<InventorySelection, "brand">>,
+  ) {
+    setStock((current) => {
+      const next = new Map(current);
+      const selection = next.get(brand);
+      if (selection) {
+        next.set(brand, { ...selection, ...updates });
       }
       return next;
     });
   }
 
   function selectAll(checked: boolean) {
-    setSelectedBrands(
-      checked ? new Set(plasters.map((product) => product.brand)) : new Set(),
+    setStock(
+      checked
+        ? new Map(
+            plasters.map((product) => [
+              product.brand,
+              stock.get(product.brand) ?? createSelection(product.brand),
+            ]),
+          )
+        : new Map(),
     );
+  }
+
+  function addSize(brand: string) {
+    const size = (sizeDrafts[brand] ?? "").trim();
+    const selection = stock.get(brand);
+    if (!size || !selection || selection.sizes.includes(size)) {
+      return;
+    }
+    updateSelection(brand, { sizes: [...selection.sizes, size] });
+    setSizeDrafts((current) => ({ ...current, [brand]: "" }));
   }
 
   return (
@@ -53,10 +97,11 @@ export default function InventoryManager({
       <div>
         <p className="text-sm font-semibold text-[#508078]">สำหรับเภสัชกร</p>
         <h2 className="mt-1 text-xl font-bold text-[#183b37]">
-          สินค้าที่มีในร้าน
+          ตั้งค่าสต็อกและรายการตรวจสอบ
         </h2>
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          เลือกแบรนด์ที่มีอยู่ในร้าน ระบบจะใช้รายการนี้กรองผลิตภัณฑ์เมื่อประเมินแผล
+          เลือกผลิตภัณฑ์ที่มีในร้าน เพิ่มขนาดตามฉลากสินค้า และยืนยันข้อมูลวัสดุ
+          ที่ตรวจสอบแล้ว การประเมินจะใช้รายการนี้กรองตัวเลือก
         </p>
       </div>
 
@@ -78,7 +123,7 @@ export default function InventoryManager({
         <>
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#f6faf8] p-3">
             <p className="text-sm font-semibold text-[#254943]">
-              เลือกแล้ว {selectedBrands.size} จาก {plasters.length} แบรนด์
+              เลือกแล้ว {stock.size} จาก {plasters.length} ผลิตภัณฑ์
             </p>
             <div className="flex gap-2">
               <button
@@ -130,43 +175,150 @@ export default function InventoryManager({
                     </legend>
                     {filteredPlasters
                       .filter((product) => product.category === category)
-                      .map((product) => (
-                        <label
-                          className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#e8efed] p-3 transition hover:border-[#a8cdc4]"
-                          key={product.brand}
-                        >
-                          <input
-                            checked={selectedBrands.has(product.brand)}
-                            className="mt-1 h-4 w-4 accent-[#286d62]"
-                            onChange={() => toggleBrand(product.brand)}
-                            type="checkbox"
-                          />
-                          <span className="min-w-0 flex-1">
-                            <span className="block font-semibold text-[#254943]">
-                              {product.brand}
-                            </span>
-                            <span className="mt-0.5 block text-xs text-slate-500">
-                              {product.manufacturer} · {product.description}
-                            </span>
-                          </span>
-                          <span className="shrink-0 pt-0.5 text-xs font-medium text-slate-500">
-                            {selectedBrands.has(product.brand)
-                              ? "มีในร้าน"
-                              : "ไม่มีในร้าน"}
-                          </span>
-                        </label>
-                      ))}
+                      .map((product) => {
+                        const selection = stock.get(product.brand);
+                        return (
+                          <div
+                            className="rounded-xl border border-[#e8efed] p-3"
+                            key={product.brand}
+                          >
+                            <label className="flex cursor-pointer items-start gap-3">
+                              <input
+                                checked={Boolean(selection)}
+                                className="mt-1 h-4 w-4 accent-[#286d62]"
+                                onChange={() => toggleBrand(product.brand)}
+                                type="checkbox"
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="block font-semibold text-[#254943]">
+                                  {product.brand}
+                                </span>
+                                <span className="mt-0.5 block text-xs text-slate-500">
+                                  {product.manufacturer} · {product.description}
+                                </span>
+                              </span>
+                              <span className="shrink-0 pt-0.5 text-xs font-medium text-slate-500">
+                                {selection ? "มีในร้าน" : "ไม่มีในร้าน"}
+                              </span>
+                            </label>
+                            {selection && (
+                              <div className="ml-7 mt-3 space-y-3 border-t border-[#edf2f0] pt-3">
+                                <div>
+                                  <label
+                                    className="block text-xs font-semibold text-[#254943]"
+                                    htmlFor={`size-${product.brand}`}
+                                  >
+                                    ขนาดที่มี (กรอกตามฉลากสินค้า)
+                                  </label>
+                                  <div className="mt-1 flex gap-2">
+                                    <input
+                                      className="min-w-0 flex-1 rounded-lg border border-[#dce8e4] px-3 py-2 text-sm outline-none focus:border-[#4b9a88]"
+                                      id={`size-${product.brand}`}
+                                      onChange={(event) =>
+                                        setSizeDrafts((current) => ({
+                                          ...current,
+                                          [product.brand]: event.target.value,
+                                        }))
+                                      }
+                                      onKeyDown={(event) => {
+                                        if (event.key === "Enter") {
+                                          event.preventDefault();
+                                          addSize(product.brand);
+                                        }
+                                      }}
+                                      placeholder="เช่น 5 × 7 cm"
+                                      value={sizeDrafts[product.brand] ?? ""}
+                                    />
+                                    <button
+                                      className="rounded-lg border border-[#c9ddd7] px-3 text-xs font-semibold text-[#286d62] hover:bg-[#f2f8f6]"
+                                      onClick={() => addSize(product.brand)}
+                                      type="button"
+                                    >
+                                      เพิ่ม
+                                    </button>
+                                  </div>
+                                  {selection.sizes.length > 0 && (
+                                    <ul
+                                      aria-label={`ขนาดที่มีของ ${product.brand}`}
+                                      className="mt-2 flex flex-wrap gap-2"
+                                    >
+                                      {selection.sizes.map((size) => (
+                                        <li
+                                          className="inline-flex items-center gap-1 rounded-full bg-[#edf7f2] px-2.5 py-1 text-xs text-[#367268]"
+                                          key={size}
+                                        >
+                                          {size}
+                                          <button
+                                            aria-label={`ลบขนาด ${size}`}
+                                            className="font-bold"
+                                            onClick={() =>
+                                              updateSelection(product.brand, {
+                                                sizes: selection.sizes.filter(
+                                                  (item) => item !== size,
+                                                ),
+                                              })
+                                            }
+                                            type="button"
+                                          >
+                                            ×
+                                          </button>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                                <label className="flex items-start gap-2 text-xs leading-5 text-slate-600">
+                                  <input
+                                    checked={selection.latexFreeConfirmed}
+                                    className="mt-1 accent-[#286d62]"
+                                    onChange={(event) =>
+                                      updateSelection(product.brand, {
+                                        latexFreeConfirmed: event.target.checked,
+                                      })
+                                    }
+                                    type="checkbox"
+                                  />
+                                  <span>
+                                    ตรวจสอบฉลากแล้ว: ยืนยันว่าไม่มีลาเท็กซ์
+                                  </span>
+                                </label>
+                                <label className="flex items-start gap-2 text-xs leading-5 text-slate-600">
+                                  <input
+                                    checked={selection.adhesiveFreeConfirmed}
+                                    className="mt-1 accent-[#286d62]"
+                                    onChange={(event) =>
+                                      updateSelection(product.brand, {
+                                        adhesiveFreeConfirmed:
+                                          event.target.checked,
+                                      })
+                                    }
+                                    type="checkbox"
+                                  />
+                                  <span>
+                                    ตรวจสอบฉลากแล้ว: ยืนยันว่าไม่มีสารยึดติด
+                                  </span>
+                                </label>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                   </fieldset>
                 ))
             )}
           </div>
 
+          <p className="mt-5 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+            ระบบจะกรองผลิตภัณฑ์เมื่อมีการเลือกความไวต่อวัสดุ
+            เฉพาะรายการที่เภสัชกรยืนยันจากฉลากแล้วเท่านั้น
+            โปรดตรวจสอบข้อมูลของแต่ละรุ่นและขนาดก่อนบันทึก
+          </p>
           <button
-            className="mt-7 w-full rounded-xl bg-[#286d62] px-5 py-3.5 font-semibold text-white transition hover:bg-[#205a51]"
-            onClick={() => onApply([...selectedBrands])}
+            className="mt-4 w-full rounded-xl bg-[#286d62] px-5 py-3.5 font-semibold text-white transition hover:bg-[#205a51]"
+            onClick={() => onApply([...stock.values()])}
             type="button"
           >
-            บันทึกสต็อกและใช้กับการประเมิน
+            บันทึกการตั้งค่าสต็อก
           </button>
         </>
       )}

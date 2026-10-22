@@ -1,5 +1,6 @@
+import { useState } from "react";
 import type { WoundEvaluation } from "../utils/scorer";
-import type { DressingCategory } from "../data/plasters";
+import type { DressingCategory, Sensitivity } from "../data/plasters";
 
 const categoryLabels: Record<DressingCategory, string> = {
   "Wound Cleansing": "ทำความสะอาดแผล",
@@ -16,17 +17,63 @@ const categoryLabels: Record<DressingCategory, string> = {
 interface ResultCardProps {
   evaluation: WoundEvaluation;
   inventoryConfigured: boolean;
+  inventorySizes: Map<string, string[]>;
+  sensitivities: Sensitivity[];
   onReset: () => void;
 }
 
 export default function ResultCard({
   evaluation,
   inventoryConfigured,
+  inventorySizes,
+  sensitivities,
   onReset,
 }: ResultCardProps) {
+  const [copyMessage, setCopyMessage] = useState("");
   const hasMatchingDressingInStock = evaluation.recommended_products.some(
     (product) => product.category === evaluation.recommended_category,
   );
+
+  async function copyRecommendation() {
+    const products =
+      evaluation.recommended_products.length > 0
+        ? evaluation.recommended_products
+            .map(
+              (product) =>
+                `- ${product.brand} (${categoryLabels[product.category]})${
+                  inventorySizes.get(product.brand)?.length
+                    ? ` · ${inventorySizes.get(product.brand)?.join(", ")}`
+                    : ""
+                }`,
+            )
+            .join("\n")
+        : "- ไม่พบผลิตภัณฑ์ที่ผ่านตัวกรอง";
+    const summary = [
+      "สรุปการประเมินแผลเบื้องต้น",
+      `กลุ่มวัสดุปิดแผล: ${categoryLabels[evaluation.recommended_category]}`,
+      `เหตุผล: ${evaluation.clinical_reason}`,
+      `ข้อมูลแผล: ${evaluation.woundTypeEval}`,
+      sensitivities.length > 0
+        ? `ความไวที่เลือก: ${sensitivities
+            .map((sensitivity) =>
+              sensitivity === "latex" ? "ลาเท็กซ์" : "สารยึดติด",
+            )
+            .join(", ")}`
+        : "",
+      "ผลิตภัณฑ์ที่เกี่ยวข้อง:",
+      products,
+      "ผลลัพธ์นี้เป็นข้อมูลประกอบการพิจารณา ไม่ใช่การวินิจฉัยหรือคำสั่งการรักษา",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    try {
+      await navigator.clipboard.writeText(summary);
+      setCopyMessage("คัดลอกสรุปแล้ว");
+    } catch {
+      setCopyMessage("คัดลอกไม่ได้ โปรดอนุญาตการเข้าถึงคลิปบอร์ด");
+    }
+  }
 
   return (
     <section className="space-y-5">
@@ -61,16 +108,21 @@ export default function ResultCard({
             ผลิตภัณฑ์ที่เกี่ยวข้อง
           </h3>
           <p className="mt-1 text-sm text-slate-500">
-            {inventoryConfigured
-              ? "ตัวเลือกที่ตรงกับกลุ่มวัสดุปิดแผลและรายการสต็อกที่บันทึกไว้"
-              : "ตัวอย่างผลิตภัณฑ์ตามกลุ่มวัสดุปิดแผล พร้อมผลิตภัณฑ์ทำความสะอาดแผล"}
+            {[
+              inventoryConfigured ? "กรองตามสต็อกที่บันทึกไว้" : "",
+              sensitivities.length > 0 ? "กรองตามข้อมูลความไวที่เลือก" : "",
+            ]
+              .filter(Boolean)
+              .join(" · ") ||
+              "ตัวอย่างผลิตภัณฑ์ตามกลุ่มวัสดุปิดแผล พร้อมผลิตภัณฑ์ทำความสะอาดแผล"}
           </p>
         </div>
 
-        {inventoryConfigured && !hasMatchingDressingInStock && (
+        {(inventoryConfigured || sensitivities.length > 0) &&
+          !hasMatchingDressingInStock && (
           <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-            ไม่มีผลิตภัณฑ์กลุ่ม{categoryLabels[evaluation.recommended_category]}ในสต็อกที่บันทึกไว้
-            รายการด้านล่าง (ถ้ามี) เป็นผลิตภัณฑ์ทำความสะอาดแผลเท่านั้น
+            ไม่พบผลิตภัณฑ์กลุ่ม{categoryLabels[evaluation.recommended_category]}ที่ผ่านตัวกรองสต็อกและความไวที่เลือก
+            ผลิตภัณฑ์ที่ไม่ได้ตรวจสอบวัสดุไว้จะไม่แสดงเมื่อเลือกความไว
           </p>
         )}
 
@@ -93,6 +145,12 @@ export default function ResultCard({
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   {product.description}
                 </p>
+                {inventorySizes.get(product.brand)?.length ? (
+                  <p className="mt-2 text-xs font-medium text-[#367268]">
+                    ขนาดที่มีในร้าน:{" "}
+                    {inventorySizes.get(product.brand)?.join(", ")}
+                  </p>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -151,13 +209,34 @@ export default function ResultCard({
         </p>
       </aside>
 
-      <button
-        className="w-full rounded-xl border border-[#c9ddd7] bg-white px-5 py-3.5 font-semibold text-[#286d62] transition hover:bg-[#f2f8f6]"
-        onClick={onReset}
-        type="button"
-      >
-        เริ่มประเมินใหม่
-      </button>
+      {copyMessage && (
+        <p aria-live="polite" className="text-center text-sm text-slate-600">
+          {copyMessage}
+        </p>
+      )}
+      <div className="grid gap-3 sm:grid-cols-2 print:hidden">
+        <button
+          className="rounded-xl border border-[#c9ddd7] bg-white px-5 py-3.5 font-semibold text-[#286d62] transition hover:bg-[#f2f8f6]"
+          onClick={() => window.print()}
+          type="button"
+        >
+          พิมพ์ / บันทึกเป็น PDF
+        </button>
+        <button
+          className="rounded-xl border border-[#c9ddd7] bg-white px-5 py-3.5 font-semibold text-[#286d62] transition hover:bg-[#f2f8f6]"
+          onClick={copyRecommendation}
+          type="button"
+        >
+          คัดลอกสรุป
+        </button>
+        <button
+          className="rounded-xl border border-[#c9ddd7] bg-white px-5 py-3.5 font-semibold text-[#286d62] transition hover:bg-[#f2f8f6] sm:col-span-2"
+          onClick={onReset}
+          type="button"
+        >
+          เริ่มประเมินใหม่
+        </button>
+      </div>
     </section>
   );
 }

@@ -1,7 +1,14 @@
-export type AppScreen = "home" | "assess" | "inventory" | "safety" | "about";
+export type AppScreen =
+  | "home"
+  | "assess"
+  | "inventory"
+  | "history"
+  | "catalog"
+  | "safety"
+  | "about";
 
 interface HomeMenuProps {
-  availableBrandCount: number | null;
+  availableProductCount: number | null;
   isInventoryLoading: boolean;
   onNavigate: (screen: AppScreen) => void;
 }
@@ -21,25 +28,37 @@ const menuItems: {
   {
     screen: "inventory",
     number: "02",
-    title: "จัดการสต็อกสินค้า",
-    description: "ระบุแบรนด์ที่มีในร้าน เพื่อกรองตัวเลือกในผลการประเมิน",
+    title: "ตั้งค่าสต็อกและรายการตรวจสอบ",
+    description: "เลือกแบรนด์ ขนาดที่มี และข้อมูลความไวต่อวัสดุของสินค้า",
+  },
+  {
+    screen: "history",
+    number: "03",
+    title: "ประวัติการประเมิน",
+    description: "ดูสรุปการประเมินและผลิตภัณฑ์ที่แนะนำล่าสุดบนอุปกรณ์นี้",
+  },
+  {
+    screen: "catalog",
+    number: "04",
+    title: "ค้นหาผลิตภัณฑ์",
+    description: "ค้นหากลุ่มผลิตภัณฑ์ ผู้ผลิต และข้อมูลอ้างอิงเบื้องต้น",
   },
   {
     screen: "safety",
-    number: "03",
+    number: "05",
     title: "สัญญาณเตือนและการส่งต่อ",
     description: "ดูอาการที่ควรได้รับการประเมินจากบุคลากรทางการแพทย์",
   },
   {
     screen: "about",
-    number: "04",
+    number: "06",
     title: "วิธีใช้และความเป็นส่วนตัว",
     description: "ทำความเข้าใจขอบเขตของเครื่องมือและข้อมูลที่จัดเก็บ",
   },
 ];
 
 export default function HomeMenu({
-  availableBrandCount,
+  availableProductCount,
   isInventoryLoading,
   onNavigate,
 }: HomeMenuProps) {
@@ -64,9 +83,9 @@ export default function HomeMenu({
               <span className="mt-2 block text-xs font-semibold text-[#508078]">
                 {isInventoryLoading
                   ? "กำลังโหลดสต็อก..."
-                  : availableBrandCount === null
+                  : availableProductCount === null
                     ? "ยังไม่ได้ตั้งค่าสต็อก"
-                    : `มีสินค้า ${availableBrandCount} แบรนด์ที่เลือก`}
+                    : `เลือกสินค้าไว้ ${availableProductCount} รายการ`}
               </span>
             )}
           </span>
