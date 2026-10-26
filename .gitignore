@@ -4,6 +4,9 @@
 # Log file
 *.log
 
+# Installed dependencies
+node_modules/
+
 # BlueJ files
 *.ctxt
 
